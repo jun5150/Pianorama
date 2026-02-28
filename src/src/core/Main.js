@@ -28,11 +28,11 @@ window.App = {
         
         for (var i = 0; i < cards.length; i++) {
             await this.setupCard(cards[i]);
-            (function(index) {
+            (function(index) { // aqui recebemos o valor como 'index'
                 setTimeout(function() {
                     if (cards[index]) self.drawCard(cards[index], false);
                 }, index * 60);
-            })(index);
+            })(i);
         }
 
         this.bindEvents(cards);
