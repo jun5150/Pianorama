@@ -1,168 +1,118 @@
 /**
- * PIANORAMA - Main.js (v20.0)
- * Ajustado para suporte a Spelling Harmônico e Armaduras de Clave Dinâmicas.
+ * PIANORAMA - Main.js (v20.1)
  */
 window.App = {
     registry: new Map(),
 
     init: async function() {
+        var self = this;
         try {
-            // Força espera pela fonte musical (Bravura)
             if (document.fonts) await document.fonts.ready;
             
-            // Popula o menu de escalas se o UIManager estiver disponível
             if (window.UIManager && window.UIManager.renderMainSelect) {
                 window.UIManager.renderMainSelect('.pianorama__select--scales');
             }
-            
             this.bindEvents();
             
-            // Pequeno delay para garantir que o CSS aplicou as larguras antes de medir o canvas
-            setTimeout(() => this.handleSelection(), 150);
-        } catch (e) { 
-            console.error("Pianorama Init Error:", e); 
+            setTimeout(function() { 
+                self.handleSelection(); 
+            }, 150);
+        } catch (e) { console.error("Main Init Error:", e); }
+    },
+
+    handleSelection: function() {
+        var self = this;
+        var keySelect = document.querySelector('.pianorama__select--pitch, .pianorama__select--key');
+        var scaleSelect = document.querySelector('.pianorama__select--scales');
+        if (!keySelect) return;
+
+        var valKey = keySelect.value;
+        var valScale = scaleSelect ? scaleSelect.value : "scale:major";
+
+        var cards = document.querySelectorAll('.pianorama__card, .pianorama__app--main, .pianorama__app--secondary');
+        for (var i = 0; i < cards.length; i++) {
+            var card = cards[i];
+            card.setAttribute('data-key', valKey);
+            card.setAttribute('data-id', valScale.indexOf(':') !== -1 ? valScale : "scale:" + valScale);
+            self.setupCard(card);
         }
     },
 
-    /**
-     * Captura os valores dos seletores e atualiza os atributos dos cards/viewers.
-     */
-    handleSelection: function() {
-        const keySelect = document.querySelector('.pianorama__select--pitch, .pianorama__select--key');
-        const scaleSelect = document.querySelector('.pianorama__select--scales');
-        
-        if (!keySelect) return;
-
-        const valKey = keySelect.value;
-        const valScale = scaleSelect ? scaleSelect.value : "scale:major";
-
-        // Atualiza tanto os viewers principais quanto cards estáticos
-        document.querySelectorAll('.pianorama__card, .pianorama__app--main, .pianorama__app--secondary').forEach(card => {
-            card.setAttribute('data-key', valKey);
-            card.setAttribute('data-id', valScale.includes(':') ? valScale : "scale:" + valScale);
-            this.setupCard(card);
-        });
-    },
-
-    /**
-     * Prepara os dados técnicos (camadas) e configura o canvas físico.
-     */
     setupCard: function(card) {
-        const canvas = card.querySelector('canvas');
+        var canvas = card.querySelector('canvas');
         if (!canvas) return;
 
-        const config = {
+        var config = {
             key: card.getAttribute('data-key') || "C",
             id: card.getAttribute('data-id') || "scale:major",
-            accidentalMode: card.getAttribute('data-accidental') || "signature", // Default: respeitar armadura
-            inversion: parseInt(card.getAttribute('data-inversion')) || 0,
-            layerRelative: card.getAttribute('data-layer-relative') === "true",
-            layerChords: card.getAttribute('data-layer-chords') === "true",
-            layerDegrees: card.getAttribute('data-layer-degrees') === "true"
+            accidentalMode: card.getAttribute('data-accidental') || "signature"
         };
 
         if (window.AtlasEngine) {
-            // Processa as camadas (Notas, Acordes, Texto)
-            const dataStore = window.AtlasEngine.processCardData(config);
-            
-            // Ajuste de DPI (Retina/High-Res)
-            const dpr = window.devicePixelRatio || 1;
-            const displayWidth = card.clientWidth || 800;
+            var dataStore = window.AtlasEngine.processCardData(config);
+            var dpr = window.devicePixelRatio || 1;
+            var displayWidth = card.clientWidth || 800;
             
             canvas.width = displayWidth * dpr;
-            canvas.height = 180 * dpr; // Aumentado levemente para comportar graus (DEG)
+            canvas.height = 160 * dpr;
             canvas.style.width = displayWidth + "px";
-            canvas.style.height = "180px";
+            canvas.style.height = "160px";
 
-            // Registra para renderização
-            this.registry.set(card, { config, layers: dataStore.layers });
+            this.registry.set(card, { config: config, layers: dataStore.layers });
             this.drawCard(card);
         }
     },
 
-    /**
-     * Executa o desenho no Canvas baseado nos dados processados.
-     */
     drawCard: function(card) {
-        const data = this.registry.get(card);
-        const canvas = card.querySelector('canvas');
+        var data = this.registry.get(card);
+        var canvas = card.querySelector('canvas');
         if (!data || !canvas) return;
 
-        const ctx = canvas.getContext('2d');
-        const dpr = window.devicePixelRatio || 1;
-        const width = canvas.width / dpr;
+        var ctx = canvas.getContext('2d');
+        var dpr = window.devicePixelRatio || 1;
+        var width = canvas.width / dpr;
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.save();
         ctx.scale(dpr, dpr);
 
-        // 1. LÓGICA DE ARMADURA:
-        // Converte a tonalidade (Ex: Do Menor -> Armadura de Mib Maior)
-        let sigKey = window.TheoryEngine.getRelativeKeyForSignature(data.config.key, data.config.id);
+        var sigKey = "C";
+        if (window.TheoryEngine && window.TheoryEngine.getRelativeKeyForSignature) {
+            sigKey = window.TheoryEngine.getRelativeKeyForSignature(data.config.key, data.config.id);
+        }
 
-        // 2. DESENHAR O PENTAGRAMA (STAFF)
         window.RenderEngine.drawStaff(ctx, 10, width - 20, 40, { 
             clef: "treble", 
             key: sigKey,
             accidentalMode: data.config.accidentalMode 
         });
 
-        // 3. DESENHAR AS CAMADAS (NOTAS E LABELS)
-        const noteStartX = 110; // Espaço para clave + armadura
-        const spacing = 55;    // Espaçamento entre notas
-
-        data.layers.forEach(layer => {
-            const color = getComputedStyle(document.documentElement)
-                          .getPropertyValue(layer.colorVar || '--pianorama-notation-color').trim() || "#000";
-
-            if (layer.type === "text") {
-                // Camada de Graus/Funções (DEG)
-                window.RenderEngine.drawLabels(ctx, noteStartX, 40, layer.data, { color: color });
-            } else {
-                // Camada de Notas ou Acordes
-                (layer.treble || []).forEach((note, i) => {
+        var noteStartX = 110;
+        data.layers.forEach(function(layer) {
+            if (layer.type !== "text") {
+                var color = "#000"; 
+                (layer.treble || []).forEach(function(note, i) {
                     if (note) {
-                        window.RenderEngine.drawNote(ctx, noteStartX + (i * spacing), 40, note, {
+                        window.RenderEngine.drawNote(ctx, noteStartX + (i * 55), 40, note, {
                             color: color,
                             clef: "treble",
-                            keySignature: sigKey, // Crucial para esconder acidentes repetidos
-                            accidentalMode: data.config.accidentalMode
+                            keySignature: sigKey
                         });
                     }
                 });
             }
         });
-
         ctx.restore();
     },
 
-    /**
-     * Vincula os eventos de interface.
-     */
     bindEvents: function() {
-        const selectors = [
-            '.pianorama__select--pitch', 
-            '.pianorama__select--key', 
-            '.pianorama__select--scales'
-        ];
-
-        selectors.forEach(s => {
-            const el = document.querySelector(s);
-            if (el) {
-                el.addEventListener('change', () => this.handleSelection());
-            }
-        });
-
-        // Ouve redimensionamento da janela para reajustar os canvas
-        window.addEventListener('resize', () => {
-            document.querySelectorAll('.pianorama__app--main, .pianorama__card').forEach(card => {
-                this.setupCard(card);
-            });
+        var self = this;
+        var selectors = ['.pianorama__select--pitch', '.pianorama__select--key', '.pianorama__select--scales'];
+        selectors.forEach(function(s) {
+            var el = document.querySelector(s);
+            if (el) el.addEventListener('change', function() { self.handleSelection(); });
         });
     }
 };
 
-// Inicialização automática ao carregar o script
-window.addEventListener('appReady', function() {
-    window.App.init();
-});
+window.addEventListener('appReady', function() { window.App.init(); });
