@@ -34,19 +34,21 @@ window.AtlasEngine = {
                 bass: mainFlow.bass
             });
 
-            // 2. Delega a geração de acordes para o seu ChordGenerator
+            // 2. Camada de Acordes
             if (config.layerChords === "true" || config.layerChords === true) {
-                var self = this;
-                var chordTreble = mainFlow.treble.map(function(note) {
+                var chordTreble = mainFlow.treble.map(function(note, index) {
                     if (!note) return null;
-                    
-                    // Aqui mora a inteligência: gera o acorde e já aplica a inversão
+        
+                    // NOVIDADE: Pergunta ao TheoryEngine qual o tipo de acorde para este grau
+                    var theory = window.TheoryEngine.getDegreeName(index, type); 
+        
                     var chord = window.ChordGenerator.generateChord(
                         note.letter + (note.accidental || "") + note.octave, 
-                        "maj", // TODO: No futuro, pegar o tipo real (maj, min, dim...) do TheoryEngine
+                        theory.type, // 'min', 'maj', 'dim' vindo do campo harmônico real
                         baseKey
                     );
 
+                    // Aplica a inversão escolhida no Laboratório
                     return window.ChordGenerator.applyInversion(chord, inversion);
                 });
 
@@ -59,15 +61,18 @@ window.AtlasEngine = {
                 });
             }
 
-            // 3. Camada de Graus/Labels (Novo!)
+            // 3. Camada de Graus/Labels
             if (config.layerDegrees === "true" || config.layerDegrees === true) {
                 layers.push({
                     id: "degrees",
-                    type: "text", // O RenderEngine deve estar pronto para ignorar desenho de nota aqui
+                    type: "text", 
                     colorVar: "--pianorama-notation-color",
                     data: mainFlow.treble.map(function(note, index) {
-                        // Pergunta ao TheoryEngine qual o nome do grau
-                        return window.TheoryEngine.getDegreeName(index).degree; 
+                        // Pega o objeto completo {degree: "II", type: "min"}
+                        var theory = window.TheoryEngine.getDegreeName(index, type);
+                        // Formata o label: ex "I", "IIm", "V7"
+                        var label = theory.degree + (theory.type === "min" ? "m" : theory.type === "dim" ? "°" : "");
+                        return label;
                     })
                 });
             }
