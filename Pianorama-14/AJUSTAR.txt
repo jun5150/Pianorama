@@ -1,0 +1,13 @@
+AJUSTAR
+
+1. Extração de "Formatters" no ContextTranslator.js
+O ContextTranslator está a misturar tradução de notas (MIDI -> Nome) com lógica de nomenclatura de ficheiros de áudio (_getFileName).
+Sugestão: Criar um AudioResolver.js.
+O ContextTranslator diria apenas: "Isto é um D#4".
+O AudioResolver decidiria: "No meu banco de sons, D#4 é o ficheiro Eb4.mp3". Isso isola a "ortografia musical" da "estrutura de ficheiros do servidor".
+
+2. Segmentação da Database.js (Lazy Loading de Dados)
+Atualmente, o loader.js carrega todos os arquivos de dados (Scales.js, Chords.js, Pedagogy.js) logo no início. Se o utilizador só quer praticar escalas maiores, ele ainda assim carrega toda a biblioteca de acordes de Jazz e inversões.
+Sugestão: Criar um sistema de Data-Modules.
+Transformar o PIANORAMA_DATA num registo que pode ser populado sob demanda.
+Exemplo: O AtlasEngine solicita uma escala de "Dorian". Se SCALES.library.modes não estiver presente, ele dispara um carregamento assíncrono do módulo de modos.
