@@ -15,32 +15,28 @@ window.RenderEngine = {
         var color = config.color || "#000";
         var secondStaffY = yBase + (4 * cfg.lineSp) + cfg.staffGap;
 
-        // Desenha os pentagramas (Clave de Sol e Fá)
+        // Desenha os pentagramas
         window.RenderSystem.drawStaff(ctx, xStart, xEnd, yBase, {
-            clef: "treble", 
-            key: config.key, 
-            time: config.time, 
-            accidentalMode: config.accidentalMode, 
-            color: color 
+            ...config, clef: "treble", color: color 
         });
 
         window.RenderSystem.drawStaff(ctx, xStart, xEnd, secondStaffY, {
-            clef: "bass", 
-            key: config.key, 
-            time: config.time, 
-            accidentalMode: config.accidentalMode, 
-            color: color 
+            ...config, clef: "bass", color: color 
         });
         
+        // CORREÇÃO: Passa yBase (topo) e secondStaffY (início do segundo staff)
         window.RenderSystem._drawBrace(ctx, xStart, yBase, secondStaffY, color);
 
-        // Barra inicial
+        // Barra inicial de sistema (Line width 1 e fix de 0.5)
         ctx.lineWidth = 1;
+        ctx.strokeStyle = color;
+        var xBar = Math.floor(xStart) + 0.5;
         ctx.beginPath();
-        ctx.moveTo(xStart, yBase - 0.5);
-        ctx.lineTo(xStart, secondStaffY + (4 * cfg.lineSp) + 0.5);
+        ctx.moveTo(xBar, yBase - 0.5);
+        ctx.lineTo(xBar, secondStaffY + (4 * cfg.lineSp) + 0.5);
         ctx.stroke();
 
+        // Barra final
         this._drawFinalBarline(ctx, xEnd, yBase, secondStaffY, color);
 
         return xStart + cfg.X_NOTE_START; 

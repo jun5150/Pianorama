@@ -53,16 +53,17 @@ window.RenderSystem = {
         }
     },
 
-    _drawBrace: function(ctx, x, yTop, yBottom, color) {
+    _drawBrace: function(ctx, x, yTop, yBottomBase, color) {
         var cfg = window.RenderConfig;
-        var totalBottom = yBottom + (4 * cfg.lineSp);
-        this._fill(ctx, x - 18, (yTop + totalBottom) / 2, '\uE000', cfg.braceSize, color);
+        var totalBottom = yBottomBase + (4 * cfg.lineSp);
+        var middleY = (yTop + totalBottom) / 2;
+        this._fill(ctx, x - 18, middleY, '\uE000', cfg.braceSize, color);
     },
 
     _fill: function(ctx, x, y, char, size, color) {
         ctx.fillStyle = color || "black";
         ctx.font = size + "px Bravura";
-        ctx.textBaseline = "middle";
+        ctx.textBaseline = "middle"; // Crucial para o alinhamento da chave
         ctx.fillText(char, x, y);
     }
 };
