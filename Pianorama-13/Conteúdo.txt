@@ -1,0 +1,67 @@
+Pianorama/
+    ├── Windows.bat
+    ├── Unix.sh
+    ├── _server/
+    │   ├── pocketbase_windows.exe
+    │   ├── pocketbase_linux
+    │   └── pocketbase_mac
+    └── pb_public/
+        ├── index.html                       (UI)
+        ├── assets/                          # Recursos globais
+        │   ├── fonts/                       # Bravura.otf, etc.
+        │   ├── css/                         # style.css, cards.css app.css, custom.css (variáveis CSS para customização)
+        │   └── audio/                       # C4.mp3, Db4.mp3, etc.
+        └── src/
+              ├── main.js                    (Importa todos e inicia o app)
+              ├── Config.js                  (Configurações gerais)
+              ├── engines/
+              │   ├── AtlasEngine.js         (Orquestrador de módulos)
+              │   ├── AudioEngine.js         (Objeto de som)
+              │   ├── RenderEngine.js        (Objeto de desenho)
+              │   ├── LayerProcessors.js     (Gerenciador de camadas de visualização)
+              │   └── TheoryEngine.js        (Gerenciador de teoria)
+              ├── generators/
+              │   ├── ScaleGenerator.js      (Lógica de escalas)
+              │   ├── ChordGenerator.js      (Lógica de acordes)
+              │   └── SequenceBuilder.js     (Lógica de sequências)
+              ├── translators/
+              │   └── ContextTranslator.js   (Lógica contextual)
+              └── data/
+                  ├── Database.js            (Gerenciador dos arquivos de dados)
+                  ├── Scales.js              (Exporta PIANORAMA_DATA)
+                  ├── Chords.js              (Exporta PIANORAMA_DATA)
+                  ├── Pedagogy.js            (Exporta PIANORAMA_DATA)
+                  └── TheoryMaps.js          (Exporta PIANORAMA_DATA - Relações)
+
+
+1. Conectar ao json (em formato de módulo)
+2. Cifras de acordes (texto)
+3. Graus e funções (texto)
+4. Compassos
+5. Piano na parte inferiro
+6. Legato e barras de ligação
+
+Andamento (BPM)
+Treino de andamento e ritmo
+Harmonia e acordes com RH e LH
+Riffs
+
+Inversões
+Progressões, cadências
+
+Tensão melódica, Grau → próximo grau, Sensível resolvendo, Notas de passagem.
+
+Superposição modal
+Estudo de condução de vozes, comparação de voicings, polifonia básica
+
+Harmonia funcional
+Reduções harmônicas
+Análise de textura
+Análise Schenkeriana simplificada
+
+
+Escala Menor Melódica: Em scale_library.diatonic.minor_melodic, tem forma ascendente clássica [0, 2, 3, 5, 7, 9, 11], mas em teoria clássica, ela desce como natural.
+
+Harmonic Fields (Minor): Em minor_harmonic.i, tem "m7M". Ver se o NotationParser ou o AudioEngine reconhece essa nomenclatura específica para o acorde de tônica com sétima maior.
+
+Inversões: Na seção chord_inversions, tem índices como [0, 1, 2, 3]. Para a Engine processar isso, precisa de função que rotacione o array de notas do acorde (ex: [C, E, G] vira [E, G, C]).
