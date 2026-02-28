@@ -82,8 +82,25 @@ window.TheoryEngine = {
         return f.triads[type] || f.sevenths[type] || f.extensions[type] || [];
     },
 
-    getDegreeName: function(semitones) {
-        if (!window.THEORY_MAPS) return { name: "Unknown", degree: "?" };
-        return window.THEORY_MAPS.note_to_degree[semitones % 12] || { name: "Unknown", degree: "?" };
+    /**
+     * Identifica o grau romano e a qualidade do acorde.
+     * @param {number} index - O índice na escala (0 a 6).
+     * @param {string} scaleType - Ex: 'major', 'minor_natural'.
+     */
+    getDegreeName: function(index, scaleType) {
+        // 1. Nomes dos graus romanos
+        const degrees = ["I", "II", "III", "IV", "V", "VI", "VII"];
+    
+        // 2. Tenta buscar na sua biblioteca CHORDS.harmonic_fields
+        // Se não achar o scaleType (ex: 'ionian'), tenta um fallback para 'major'
+        var field = (window.CHORDS && window.CHORDS.harmonic_fields) ? 
+                    (window.CHORDS.harmonic_fields[scaleType] || window.CHORDS.harmonic_fields["major"]) : 
+                    null;
+
+        return {
+            degree: degrees[index] || "?",
+            // Pega o tipo (maj, min, dim) do campo harmônico; se não houver campo, assume 'maj'
+            type: (field && field.triads) ? field.triads[index] : "maj"
+        };
     }
 };
