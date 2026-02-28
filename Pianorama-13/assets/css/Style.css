@@ -1,0 +1,49 @@
+/**
+ * PIANORAMA
+ * Style.css
+ */
+
+@import url("Fonts.css");
+@import url("Cards.css");
+@import url("../../config/Custom.css");
+
+/* ---RESETS --- */
+* {
+    box-sizing: border-box;
+}
+
+/* --- CARD --- */
+.pianorama__canvas {
+    display: block;
+    width: 100%;
+    height: calc(100% - var(--header-height));
+    padding: 0 var(--piano-card-padding);
+    overflow-x: auto;
+    background: transparent;
+}
+
+/* --- CARD WIDTH --- */
+.your-custom-container {
+    width: 100%;
+    background: orange;
+
+    display: none;
+}
+
+/* --- CARD ALIGN, MARGINS AND PADDING --- */
+.pianorama__card {
+/*    margin: var(--pianorama-card-margins);*/
+    font-family: var(--pianorama-font-family);
+    color: var(--pianorama-notation-color);
+}
+
+.pianorama__card--title {
+    font-size: var(--pianorama-card-title-size);
+    font-weight: bold;
+    color: var(--pianorama-card-title-color);
+}
+
+.pianorama__card--detail {
+    font-size: var(--pianorama-card-detail-size);
+    color: var(--pianorama-card-detail-color);
+}
