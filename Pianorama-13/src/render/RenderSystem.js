@@ -3,26 +3,27 @@
  */
 window.RenderSystem = {
     drawStaff: function(ctx, xStart, xEnd, yBase, config) {
-        config = config || {}; // Segurança contra undefined
+        if (!ctx || typeof ctx.beginPath !== 'function') return;
         var cfg = window.RenderConfig;
         var color = config.color || "#000";
         
         ctx.lineWidth = 1; 
         ctx.strokeStyle = color;
-        
         for (var i = 0; i < 5; i++) {
             var y = yBase + (i * cfg.lineSp);
-            ctx.beginPath(); ctx.moveTo(xStart, y); ctx.lineTo(xEnd, y); ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(xStart, y);
+            ctx.lineTo(xEnd, y);
+            ctx.stroke();
         }
 
         var clefGlyph = (config.clef === "bass") ? '\uE062' : '\uE050';
-        var clefOffset = (config.clef === "bass") ? 1 * cfg.lineSp : 3 * cfg.lineSp;
+        var clefOffset = (config.clef === "bass") ? cfg.lineSp : 3 * cfg.lineSp;
         this._fill(ctx, xStart + cfg.X_CLEF, yBase + clefOffset, clefGlyph, cfg.clefSize, color);
 
         if (config.accidentalMode !== "notes") {
             this._drawKeySignature(ctx, xStart + cfg.X_KEY_SIG, yBase, config.clef, config.key, color);
         }
-
         if (config.time) {
             this._drawTimeSignature(ctx, xStart + cfg.X_TIME_SIG, yBase, config.time, color);
         }
@@ -42,7 +43,6 @@ window.RenderSystem = {
         if (sig.length === 0) return;
         var isSharp = ["G", "D", "A", "E", "B", "F#", "C#"].indexOf(key) !== -1;
         var glyph = isSharp ? '\uE262' : '\uE260';
-        
         var pattern = isSharp 
             ? (clef === "treble" ? [0, 3, -1, 2, 5, 1, 4] : [-2, 1, -3, 0, 3, -1, 2]) 
             : (clef === "treble" ? [4, 1, 5, 2, 6, 3, 7] : [2, -1, 3, 0, 4, 1, 5]);
