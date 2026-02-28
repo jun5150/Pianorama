@@ -1,0 +1,4 @@
+/**
+ * PIANORAMA - RenderConfig.js
+ */
+
