@@ -1,31 +1,32 @@
 /**
- * PIANORAMA - Main.js (v18.0)
- * Foco: Sincronização forçada de seletores e correção de estado.
+ * PIANORAMA - Main.js (v18.1)
+ * Foco: Nitidez de traço (DPR), Sincronia de Menus e Playback Robusto.
  */
 
 window.App = {
     registry: new Map(),
     currentPlayingCard: null,
+    currentPlayToken: null,
 
     init: async function() {
-        console.log("App: Iniciando v18.0...");
+        console.log("App: Iniciando v18.1...");
         
         try {
             if (document.fonts) await document.fonts.ready;
             
-            // 1. Popula o menu de escalas
+            // 1. Popular Menus
             if (window.UIManager && typeof window.UIManager.renderMainSelect === 'function') {
                 window.UIManager.renderMainSelect('.pianorama__select--scales');
             }
 
-            // 2. Tenta encontrar os selects para bindar eventos
+            // 2. Ligar Eventos
             this.bindEvents();
 
-            // 3. Renderização Inicial com forçagem de Tonalidade
-            // Usamos um pequeno delay para garantir que o DOM está 100% estável
+            // 3. Renderização Inicial
+            // Pequeno delay para o DOM respirar após o UIManager
             setTimeout(() => {
                 this.handleSelection();
-            }, 200);
+            }, 300);
 
         } catch (e) {
             console.error("App: Erro na inicialização:", e);
@@ -35,51 +36,34 @@ window.App = {
     },
 
     /**
-     * handleSelection: O coração da sincronia. 
-     * Ele lê os menus e injeta os valores nos cards e nos motores de lógica.
+     * Captura valores dos menus e atualiza o estado global
      */
     handleSelection: async function() {
-        // Busca o seletor de tom (tenta as duas classes possíveis para evitar erro)
         const keySelect = document.querySelector('.pianorama__select--pitch') || 
                           document.querySelector('.pianorama__select--key');
-        
         const scaleSelect = document.querySelector('.pianorama__select--scales');
         
-        if (!keySelect) {
-            console.error("App: Crítico - Seletor de Tonalidade não encontrado no HTML!");
-            return;
-        }
+        if (!keySelect) return;
 
-        const newKey = keySelect.value; // Ex: "C", "G", "Eb"
-        let rawId = scaleSelect ? scaleSelect.value : "major";
-        
-        // Normaliza o ID para o AtlasEngine (garante o prefixo scale:)
+        const newKey = keySelect.value;
+        const rawId = scaleSelect ? scaleSelect.value : "major";
         const newScaleId = rawId.includes(':') ? rawId : "scale:" + rawId;
 
         console.log(`App: Sincronizando -> [${newKey}] [${newScaleId}]`);
 
-        // 1. Sincroniza o Tradutor (Muda o cálculo do absoluteY)
-        if (window.ContextTranslator && window.ContextTranslator.setContext) {
+        if (window.ContextTranslator) {
             window.ContextTranslator.setContext(newKey);
         }
 
-        // 2. Atualiza os Datasets dos cards no HTML
         const targets = document.querySelectorAll('.pianorama__card, .pianorama__app--main, .pianorama__app--secondary');
         targets.forEach(card => {
-            card.dataset.key = newKey; // Aqui matamos o "Eb" travado
+            card.dataset.key = newKey;
             if (card.classList.contains('pianorama__app--main')) {
                 card.dataset.id = newScaleId;
             }
-            
-            // Limpa o canvas antes de redesenhar para evitar "linhas grossas"
-            const canvas = card.querySelector('canvas');
-            if (canvas) {
-                const ctx = canvas.getContext('2d');
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-            }
+            card.classList.remove('is-ready');
         });
 
-        // 3. Limpa o cache de dados e renderiza
         this.registry.clear();
         this.refreshAll();
     },
@@ -93,7 +77,6 @@ window.App = {
         const canvas = card.querySelector('canvas');
         if (!canvas) return;
 
-        // Configuração para o AtlasEngine
         const config = {
             key: card.dataset.key || "C",
             id: card.dataset.id || "scale:major",
@@ -108,11 +91,23 @@ window.App = {
         if (window.AtlasEngine) {
             try {
                 const dataStore = window.AtlasEngine.processCardData(config);
+                
+                // --- AJUSTE DE NITIDEZ (Anti-aliasing para traços finos) ---
+                const dpr = window.devicePixelRatio || 1;
+                const rect = card.getBoundingClientRect();
+                
+                // Ajusta o tamanho interno (pixels reais)
+                canvas.width = rect.width * dpr;
+                canvas.height = 280 * dpr;
+                
+                // Ajusta o tamanho visual (CSS)
+                canvas.style.width = rect.width + "px";
+                canvas.style.height = "280px";
+                
+                const ctx = canvas.getContext('2d');
+                ctx.setTransform(dpr, 0, 0, dpr, 0, 0); // Escala o contexto para o DPR
+                
                 this.registry.set(card, { layers: dataStore.layers, config: config });
-                
-                canvas.width = card.offsetWidth || 800; 
-                canvas.height = 280; 
-                
                 this.drawCard(card);
 
                 // Preload de áudio
@@ -126,7 +121,7 @@ window.App = {
                     }
                 });
             } catch (err) {
-                console.error("App: Erro no Atlas/Render:", err);
+                console.error("App: Erro no processamento:", err);
             }
         }
 
@@ -139,18 +134,25 @@ window.App = {
         if (!data || !canvas || !window.RenderEngine) return;
 
         const ctx = canvas.getContext('2d');
+        const dpr = window.devicePixelRatio || 1;
+                ctx.save();
+                ctx.setTransform(1, 0, 0, 1, 0, 0);
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.restore();
         const style = getComputedStyle(card);
         const sysColor = style.getPropertyValue('--pianorama-notation-color').trim() || "#000";
 
-        // Chama o RenderEngine (v10.3) passando o contexto correto
-        const noteStartX = window.RenderEngine.drawSystem(ctx, 20, canvas.width - 15, 65, {
+        // Limpa a área visível considerando a escala
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Desenha o sistema básico
+        const noteStartX = window.RenderEngine.drawSystem(ctx, 20, parseInt(canvas.style.width) - 15, 65, {
             key: data.config.key,
             accidentalMode: data.config.accidentalMode,
             time: data.config.time,
             color: sysColor
         });
 
-        // Loop de Camadas
         data.layers.forEach(layer => {
             const layerColor = style.getPropertyValue(layer.colorVar).trim() || sysColor;
 
@@ -158,7 +160,9 @@ window.App = {
                 window.RenderEngine.drawLabels(ctx, noteStartX, 65, layer.data, { color: layerColor });
             } else {
                 const yTreble = 65;
-                const yBass = 65 + (window.RenderConfig.staffGap || 80) + 40;
+                const lineSp = window.RenderConfig.lineSp || 10;
+                const staffGap = window.RenderConfig.staffGap || 80;
+                const yBass = yTreble + staffGap + (4 * lineSp);
                 
                 const treble = layer.treble || [];
                 const bass = layer.bass || [];
@@ -166,7 +170,7 @@ window.App = {
 
                 for (let i = 0; i < len; i++) {
                     let x = noteStartX + (i * 45);
-                    if (x > canvas.width - 20) break;
+                    if (x > parseInt(canvas.style.width) - 20) break;
 
                     if (treble[i]) {
                         window.RenderEngine.drawNote(ctx, x, yTreble, treble[i], {
@@ -184,7 +188,6 @@ window.App = {
     },
 
     bindEvents: function() {
-        // Delegação de eventos para capturar mudanças nos menus
         document.body.addEventListener('change', (e) => {
             if (e.target.classList.contains('pianorama__select--pitch') || 
                 e.target.classList.contains('pianorama__select--key') ||
@@ -202,8 +205,7 @@ window.App = {
             const all = (l.treble || []).concat(l.bass || []);
             all.forEach(slot => {
                 if (!slot) return;
-                const notes = Array.isArray(slot) ? slot : [slot];
-                notes.forEach(n => {
+                [].concat(slot).forEach(n => {
                     if (n && n.fileName) {
                         let name = n.fileName;
                         for (let key in enharmonics) { name = name.replace(key, enharmonics[key]); }
@@ -219,21 +221,14 @@ window.App = {
         const data = this.registry.get(card);
         if (!data || !data.isAudioLoaded) return;
 
-        // 1. Se o card clicado já é o que está tocando, para tudo e sai (Toggle)
         if (this.currentPlayingCard === card) {
-            console.log("App: Parando execução atual.");
             this.stopAudio();
             return;
         }
 
-        // 2. Se havia outro card tocando, para ele primeiro
-        if (this.currentPlayingCard) {
-            this.stopAudio();
-            // Pequena pausa para garantir que o loop anterior detecte a mudança
-            await new Promise(r => setTimeout(r, 50));
-        }
+        if (this.currentPlayingCard) this.stopAudio();
+        await new Promise(r => setTimeout(r, 50));
 
-        // 3. Define o novo card como o atual e gera um Token único para esta execução
         const playToken = Math.random(); 
         this.currentPlayToken = playToken;
         this.currentPlayingCard = card;
@@ -248,41 +243,25 @@ window.App = {
         let maxSteps = 0;
         playableLayers.forEach(l => maxSteps = Math.max(maxSteps, (l.treble || []).length));
 
-        console.log("App: Iniciando Playback...");
-
         for (let i = 0; i < maxSteps; i++) {
-            // 4. VERIFICAÇÃO CRÍTICA:
-            // Se o card atual mudou OU se o token de execução mudou, mata este loop
-            if (this.currentPlayingCard !== card || this.currentPlayToken !== playToken) {
-                console.log("App: Loop abortado (Token/Card antigo).");
-                return; 
-            }
+            if (this.currentPlayingCard !== card || this.currentPlayToken !== playToken) return;
         
             playableLayers.forEach(layer => {
-                const notesAtTime = [
-                    layer.treble ? layer.treble[i] : null, 
-                    layer.bass ? layer.bass[i] : null
-                ];
-            
-                notesAtTime.forEach(slot => {
+                const t = layer.treble ? layer.treble[i] : null;
+                const b = layer.bass ? layer.bass[i] : null;
+                [t, b].forEach(slot => {
                     if (!slot) return;
-                    const notes = Array.isArray(slot) ? slot : [slot];
-                    notes.forEach(n => {
+                    [].concat(slot).forEach(n => {
                         if (n && n.fileName) {
-                            const folder = data.config.folder || 'scales';
+                            const folder = (data.config.id.indexOf('field') > -1) ? 'chords' : 'scales';
                             window.AudioEngine.playFile(folder, n.fileName);
                         }
                     });
                 });
             });
-
             await new Promise(r => setTimeout(r, delay));
         }
-
-        // 5. Se chegou ao fim do loop e ainda é o mesmo card/token, limpa o estado
-        if (this.currentPlayToken === playToken) {
-            this.stopAudio();
-        }
+        if (this.currentPlayToken === playToken) this.stopAudio();
     },
 
     stopAudio: function() {
@@ -290,7 +269,7 @@ window.App = {
             this.currentPlayingCard.classList.remove('is-playing');
         }
         this.currentPlayingCard = null;
-        this.currentPlayToken = null; // Invalida qualquer loop que esteja rodando
+        this.currentPlayToken = null;
     },
 
     handleResize: function() {
