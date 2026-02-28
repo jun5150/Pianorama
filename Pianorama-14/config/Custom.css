@@ -1,0 +1,61 @@
+/**
+ * PIANORAMA
+ * Custom.css
+ */
+
+:root {
+    /* Default width: 100%
+     * Set cards width individually by adding inline style="width: ...px;"
+     */
+    --pianorama-card-width: 100%;
+    --piano-card-padding: 20px; /* modifies start/end of pentagram lines */
+    --pianorama-card-margins: 0 auto; /* top and bottom margins = 0, horizontally centralized */
+
+    --pianorama-font-family: "Roboto", sans-serif;
+
+    --pianorama-card-title-size: 1.1rem;
+    --pianorama-card-title-color: var(--pianorama-notation-color);
+
+    --pianorama-card-detail-size: 0.8rem;
+    --pianorama-card-detail-color: #666666;
+
+    /* --- DARK THEME (DEFAULT) --- */
+    /* Main colors */
+    --pianorama-background-color: #101418;
+    --pianorama-notation-color: #000000;
+    --pianorama-notation-chords-color: #FF0000;
+    --pianorama-notation-relative-color: #000000;
+
+    --pianorama-hover-color: #FFCC00;
+
+    /* Hover */
+    --pianorama-notation-hover: var(--pianorama-main-color);
+    --pianorama-background-hover: var(--pianorama-background-color);
+
+    /* Fingering numbers colors */
+    --pianorama-fingering-color: green;
+
+    /* Label text color */
+    --pianorama__card--title: #FFFFFF;
+    --pianorama__card--detail: #666666;
+
+    --pianorama-degree-highlight-color: ;
+    --pianorama-root-highlight-color: ;
+}
+
+[data-theme="dark"] {
+    /* --- LIGHT THEME --- */
+    /* Main colors */
+    --pianorama-background-color: #FFFFFF;
+    --pianorama-notation-color: #000000;
+
+    /* Hover */
+    --pianorama-notation-hover: #27C2F5;
+    --pianorama-background-hover: var(--pianorama-background-color);
+
+    /* Fingering numbers colors */
+    --pianorama-fingering-color: green;
+
+    /* Label text color */
+    --pianorama-info-color: var(--pianorama-notation-color);
+}
