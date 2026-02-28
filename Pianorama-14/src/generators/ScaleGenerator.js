@@ -1,5 +1,5 @@
 /**
- * PIANORAMA - ScaleGenerator.js (v13.6)
+ * PIANORAMA - ScaleGenerator.js (v14.0)
  */
 window.ScaleGenerator = {
     generateScale: function(rootWithOctave, type) {
@@ -9,13 +9,13 @@ window.ScaleGenerator = {
         var rootKey = match[1];
         var startOctave = parseInt(match[2]);
         var letters = ["C", "D", "E", "F", "G", "A", "B"];
-        var startLetterIndex = letters.indexOf(rootKey.charAt(0).toUpperCase());
+        var startLetterChar = rootKey.charAt(0).toUpperCase();
+        var startLetterIndex = letters.indexOf(startLetterChar);
 
-        window.ContextTranslator.setContext(rootKey);
-        var intervals = window.TheoryEngine.getScaleFormula(type);
+        if (window.ContextTranslator) window.ContextTranslator.setContext(rootKey);
+
+        var intervals = window.TheoryEngine.getScaleFormula(type) || [];
         var baseMidi = this._getMidi(rootKey, startOctave);
-
-        // Se a escala tem 7 notas, usamos a sequência rígida de letras (C-D-E...)
         var isDiatonic = (intervals.length === 7);
 
         return intervals.map(function(semitones, index) {
@@ -25,7 +25,6 @@ window.ScaleGenerator = {
             if (isDiatonic) {
                 targetLetter = letters[(startLetterIndex + index) % 7];
             } else {
-                // Lógica de salto para Pentatônicas
                 var offset = 0;
                 if (semitones <= 2) offset = 1;
                 else if (semitones <= 4) offset = 2;
@@ -36,7 +35,6 @@ window.ScaleGenerator = {
                 targetLetter = letters[(startLetterIndex + offset) % 7];
             }
 
-            // PASSAMOS A LETRA ALVO PARA O TRADUTOR
             return window.ContextTranslator.translate(midi, targetLetter);
         });
     },
