@@ -1,5 +1,5 @@
 /**
- * PIANORAMA - TheoryCore.js (v13.6)
+ * PIANORAMA - TheoryCore.js (v14.0)
  * Matemática básica de intervalos e fórmulas.
  */
 window.TheoryEngine = window.TheoryEngine || {};
@@ -7,9 +7,11 @@ window.TheoryEngine = window.TheoryEngine || {};
 (function(TE) {
     TE.getAccidentalType = function(key) {
         if (!key) return "sharp";
-        var k = key.charAt(0).toUpperCase() + key.slice(1);
-        var flats = ["F", "Bb", "Eb", "Ab", "Db", "Gb", "Cb", "c", "f", "bb", "eb", "ab", "db", "gb"];
-        return (flats.indexOf(k) !== -1) ? "flat" : "sharp";
+        var k = key.charAt(0).toUpperCase();
+        var flats = ["F", "Bb", "Eb", "Ab", "Db", "Gb", "Cb"];
+        // Verifica se a tonalidade pede bemol (incluindo versões minúsculas/menores)
+        var searchKey = key.replace('m', '');
+        return (flats.indexOf(searchKey) !== -1) ? "flat" : "sharp";
     };
 
     TE.getScaleFormula = function(type) {
@@ -21,28 +23,24 @@ window.TheoryEngine = window.TheoryEngine || {};
         return [];
     };
 
-    TE.getChordFormula = function(type) {
-        if (!window.CHORDS || !window.CHORDS.formulas) return [];
-        var f = window.CHORDS.formulas;
-        return f.triads[type] || f.sevenths[type] || f.extensions[type] || [];
-    };
-
     TE.getInterval = function(root, interval) {
-        const notesSharp = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
-        const notesFlat  = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"];
-        const semitonesMap = { "m2":1, "M2":2, "m3":3, "M3":4, "P4":5, "P5":7, "m6":8, "M6":9, "m7":10, "M7":11 };
-        const st = semitonesMap[interval] || 0;
-        let idx = notesSharp.indexOf(root);
+        var notesSharp = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+        var notesFlat  = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"];
+        var semitonesMap = { "m2":1, "M2":2, "m3":3, "M3":4, "P4":5, "P5":7, "m6":8, "M6":9, "m7":10, "M7":11 };
+        var st = semitonesMap[interval] || 0;
+        
+        var idx = notesSharp.indexOf(root);
         if (idx === -1) idx = notesFlat.indexOf(root);
         if (idx === -1) return root;
-        let targetIdx = (idx + st) % 12;
-        return (TE.getAccidentalType(root) === "flat") ? notesFlat[targetIdx] : notesSharp[targetIdx];
+
+        var targetIdx = (idx + st) % 12;
+        var useFlats = TE.getAccidentalType(root) === "flat";
+        return useFlats ? notesFlat[targetIdx] : notesSharp[targetIdx];
     };
 
-    // --- FUNÇÕES QUE FALTAVAM E CAUSAVAM O CRASH ---
     TE.getRelativeKey = function(key, type) {
         if (!key) return "C";
-        var isMajor = !type || type.indexOf('major') !== -1 || type === 'ionian';
+        var isMajor = !type || type.indexOf('major') !== -1;
         if (isMajor) {
             return (window.THEORY_MAPS && window.THEORY_MAPS.relative_map) ? window.THEORY_MAPS.relative_map[key] || key : key;
         } else {
@@ -53,8 +51,7 @@ window.TheoryEngine = window.TheoryEngine || {};
     };
 
     TE.getRelativeScaleType = function(type) {
-        if (!type || type.indexOf('major') !== -1) return 'minor_natural';
-        return 'major';
+        return (type && type.indexOf('major') !== -1) ? 'minor_natural' : 'major';
     };
 
 })(window.TheoryEngine);
