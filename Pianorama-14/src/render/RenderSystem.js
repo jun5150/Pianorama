@@ -1,6 +1,5 @@
 /**
- * PIANORAMA - RenderSystem.js (v13.0)
- * Responsável por desenhar o sistema (Pautas, Claves, Armaduras).
+ * PIANORAMA - RenderSystem.js (v13.1)
  */
 
 window.RenderSystem = {
@@ -9,7 +8,6 @@ window.RenderSystem = {
         ctx.lineWidth = 1; 
         ctx.strokeStyle = config.color || "#000";
         
-        // 1. Desenha as 5 linhas da pauta
         for (var i = 0; i < 5; i++) {
             var y = Math.floor(yBase + (i * cfg.lineSp)) + 0.5;
             ctx.beginPath(); 
@@ -18,18 +16,15 @@ window.RenderSystem = {
             ctx.stroke();
         }
 
-        // 2. Desenha a Clave
         var clefGlyph = (config.clef === "bass") ? '\uE062' : '\uE050';
         var clefOffset = (config.clef === "bass") ? cfg.lineSp : 3 * cfg.lineSp;
         this._fill(ctx, xStart + 10, yBase + clefOffset, clefGlyph, cfg.clefSize, config.color);
 
-        // 3. Desenha a Armadura de Clave (Usa a effectiveKey vinda do AtlasEngine)
         if (config.accidentalMode !== "notes") {
             var keyToDraw = config.effectiveKey || config.key || "C";
             this._drawKeySignature(ctx, xStart + 45, yBase, config.clef, keyToDraw, config.color);
         }
 
-        // 4. Desenha a Fórmula de Compasso
         if (config.time) {
             this._drawTimeSignature(ctx, xStart + 145, yBase, config.time, config.color);
         }
@@ -41,12 +36,14 @@ window.RenderSystem = {
         var isSharp = ["G", "D", "A", "E", "B", "F#", "C#"].indexOf(key) !== -1;
         var glyph = isSharp ? '\uE262' : '\uE260';
         
+        // CORREÇÃO DOS PADRÕES DE ALTURA (MÉTRICA DA PAUTA)
+        // Valores representam o deslocamento em "degraus" da pauta
         var pattern = isSharp 
-            ? (clef === "treble" ? [0, 3, -1, 2, 5, 1, 4] : [-2, 1, -3, 0, 3, -1, 2]) 
-            : (clef === "treble" ? [4, 1, 5, 2, 6, 3, 7] : [2, -1, 3, 0, 4, 1, 5]);
+            ? (clef === "treble" ? [6, 3, 7, 4, 1, 5, 2] : [4, 1, 5, 2, -1, 3, 0]) 
+            : (clef === "treble" ? [2, 5, 1, 4, 0, 3, -1] : [0, 3, -1, 2, -2, 1, -3]);
 
         for (var i = 0; i < sig.length; i++) {
-            var yP = yBase + 20 - (pattern[i] * 5);
+            var yP = yBase + 40 - (pattern[i] * 5); // 40 é a linha de base (Mi4)
             this._fill(ctx, x + (i * 12), yP, glyph, cfg.accSize, color);
         }
     },
