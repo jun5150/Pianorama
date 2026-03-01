@@ -24,12 +24,15 @@ window.AtlasEngine = {
 
             layers.push({ id: "main", colorVar: "--pianorama-notation-color", treble: mainFlow.treble, bass: mainFlow.bass });
 
+            // Localize a parte de mapeamento de acordes e adicione a proteção if(chord)
             if (config.layerChords === true || config.layerChords === "true") {
                 var chordTreble = mainFlow.treble.map(function(note, index) {
                     if (!note) return null;
                     var theory = window.TheoryEngine.getDegreeName(index, type); 
                     var chord = window.ChordGenerator.generateChord(note.letter + (note.accidental || "") + note.octave, theory.type, effectiveKey);
-                    return window.ChordGenerator.applyInversion(chord, config.inversion || 0);
+        
+                    // Proteção: Só aplica inversão se o acorde for gerado com sucesso
+                    return chord ? window.ChordGenerator.applyInversion(chord, config.inversion || 0) : null;
                 });
                 layers.push({ id: "chords", colorVar: "--pianorama-notation-chords-color", treble: chordTreble, bass: [], isStack: true });
             }
