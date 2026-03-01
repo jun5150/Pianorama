@@ -1,5 +1,5 @@
 /**
- * PIANORAMA - ContextTranslator.js (v13.6)
+ * PIANORAMA - ContextTranslator.js (v13.7)
  */
 window.ContextTranslator = {
     LETTERS: ["C", "D", "E", "F", "G", "A", "B"],
@@ -13,7 +13,6 @@ window.ContextTranslator = {
         if (window.PIANORAMA_DATA && window.PIANORAMA_DATA.key_signatures) {
             this.signature = window.PIANORAMA_DATA.key_signatures[sigKey] || [];
         }
-        // Define preferência de acidente para o modo de inferência (acordes)
         var flats = ["F", "Bb", "Eb", "Ab", "Db", "Gb", "Cb"];
         this.accidentalPreference = (flats.indexOf(sigKey) !== -1) ? "flat" : "sharp";
     },
@@ -21,12 +20,7 @@ window.ContextTranslator = {
     translate: function(midi, targetLetter) {
         var pc = midi % 12;
         var octave = Math.floor(midi / 12) - 1;
-        
-        // Se houver targetLetter, usa lógica de escala. Se não, infere (para acordes).
-        var info = targetLetter ? 
-                   this._getAccidentalForLetter(pc, targetLetter) : 
-                   this._inferNoteByContext(pc);
-
+        var info = targetLetter ? this._getAccidentalForLetter(pc, targetLetter) : this._inferNoteByContext(pc);
         var noteName = info.letter + info.accidental;
         var isInSignature = this.signature.indexOf(noteName) !== -1;
 
@@ -35,14 +29,10 @@ window.ContextTranslator = {
         if (info.letter === "B" && pc === 0) visualOctave--;
 
         return {
-            midi: midi,
-            octave: octave, 
-            letter: info.letter,
-            accidental: info.accidental,
-            glyph: this._getGlyph(info.accidental),
-            isInSignature: isInSignature,
+            midi: midi, octave: octave, letter: info.letter, accidental: info.accidental,
+            glyph: this._getGlyph(info.accidental), isInSignature: isInSignature,
             absoluteY: this._calculateAbsoluteY(info.letter, visualOctave), 
-            fileName: this._getFileName(info.letter, info.accidental, octave)
+            fileName: this._getFileName(midi) // MUDANÇA: Áudio baseado no som real (MIDI)
         };
     },
 
@@ -52,13 +42,9 @@ window.ContextTranslator = {
         var diff = pc - naturalPC;
         if (diff > 6) diff -= 12;
         if (diff < -6) diff += 12;
-
         var acc = "";
-        if (diff === 1) acc = "#";
-        else if (diff === -1) acc = "b";
-        else if (diff === 2) acc = "##";
-        else if (diff === -2) acc = "bb";
-
+        if (diff === 1) acc = "#"; else if (diff === -1) acc = "b";
+        else if (diff === 2) acc = "##"; else if (diff === -2) acc = "bb";
         return { letter: targetLetter, accidental: acc };
     },
 
@@ -75,15 +61,12 @@ window.ContextTranslator = {
         return (parseInt(octave) * 7) + stepIdx;
     },
 
-    _getFileName: function(letter, accidental, octave) {
-        var name = letter + accidental;
-        var enharmonics = { "Db":"C#","Eb":"D#","Gb":"F#","Ab":"G#","Bb":"A#","Cb":"B","Fb":"E","E#":"F","B#":"C" };
-        if (enharmonics[name]) {
-            if (name === "Cb") octave--; 
-            if (name === "B#") octave++;
-            name = enharmonics[name];
-        }
-        return name + octave + ".mp3";
+    _getFileName: function(midi) {
+        // Para o Áudio, não importa se é D# ou Eb, usamos o nome padrão do seu banco (Sustenidos)
+        var notes = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+        var pc = midi % 12;
+        var octave = Math.floor(midi / 12) - 1;
+        return notes[pc] + octave + ".mp3";
     },
 
     _getGlyph: function(accidental) {
