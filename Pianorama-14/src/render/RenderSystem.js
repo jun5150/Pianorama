@@ -1,79 +1,75 @@
 /**
- * PIANORAMA - AtlasEngine.js (v14.0)
- * Orquestrador: Agora calcula a armadura efetiva (Ex: C + Menor = Eb Major Sig).
+ * PIANORAMA - RenderSystem.js (v13.0)
+ * Responsável por desenhar o sistema (Pautas, Claves, Armaduras).
  */
-window.AtlasEngine = {
-    processCardData: function(config) {
-        var layers = [];
-        var baseKey = config.key || "C";
-        var parts = (config.id || "scale:major").split(":");
-        var category = parts[0];
-        var type = parts[1];
 
-        // 1. CÁLCULO DA ARMADURA EFETIVA
-        // Se for C Menor, effectiveKey será "Eb" (para desenhar 3 bemóis)
-        var effectiveKey = window.TheoryEngine.getEffectiveSignature(baseKey, type);
-
-        var mainFlow = { treble: [], bass: [] };
-
-        try {
-            // 2. GERAÇÃO DA ESCALA (Agora enviando a armadura efetiva)
-            if (category === "scale") {
-                if (config.layerRelative === true || config.layerRelative === "true") {
-                    mainFlow = window.SequenceBuilder.createModelX2(baseKey, type);
-                } else {
-                    mainFlow.treble = window.ScaleGenerator.generateScale(baseKey + "4", type, effectiveKey);
-                    mainFlow.bass = window.ScaleGenerator.generateScale(baseKey + "2", type, effectiveKey);
-                }
-            }
-
-            // Camada Principal
-            layers.push({
-                id: "main",
-                colorVar: "--pianorama-notation-color",
-                treble: mainFlow.treble,
-                bass: mainFlow.bass
-            });
-
-            // 3. CAMADA DE ACORDES
-            if (config.layerChords === true || config.layerChords === "true") {
-                var chordTreble = mainFlow.treble.map(function(note, index) {
-                    if (!note) return null;
-                    var theory = window.TheoryEngine.getDegreeName(index, type); 
-                    var chord = window.ChordGenerator.generateChord(
-                        note.letter + (note.accidental || "") + note.octave, 
-                        theory.type, 
-                        effectiveKey // Acordes também respeitam a armadura efetiva
-                    );
-                    return window.ChordGenerator.applyInversion(chord, config.inversion || 0);
-                });
-
-                layers.push({ id: "chords", colorVar: "--pianorama-notation-chords-color", treble: chordTreble, bass: [], isStack: true });
-            }
-
-            // 4. CAMADA DE GRAUS
-            if (config.layerDegrees === true || config.layerDegrees === "true") {
-                layers.push({
-                    id: "degrees",
-                    type: "text", 
-                    colorVar: "--pianorama-notation-color",
-                    data: mainFlow.treble.map(function(note, index) {
-                        var theory = window.TheoryEngine.getDegreeName(index, type);
-                        return theory.degree; 
-                    })
-                });
-            }
-
-        } catch (e) {
-            console.error("AtlasEngine: Falha no processamento.", e);
+window.RenderSystem = {
+    drawStaff: function(ctx, xStart, xEnd, yBase, config) {
+        var cfg = window.RenderConfig;
+        ctx.lineWidth = 1; 
+        ctx.strokeStyle = config.color || "#000";
+        
+        // 1. Desenha as 5 linhas da pauta
+        for (var i = 0; i < 5; i++) {
+            var y = Math.floor(yBase + (i * cfg.lineSp)) + 0.5;
+            ctx.beginPath(); 
+            ctx.moveTo(xStart, y); 
+            ctx.lineTo(xEnd, y); 
+            ctx.stroke();
         }
 
-        // Retornamos a effectiveKey para que o RenderSystem saiba o que desenhar na clave
-        return { 
-            layers: layers, 
-            key: baseKey, 
-            effectiveKey: effectiveKey, 
-            time: config.time || "4/4" 
-        };
+        // 2. Desenha a Clave
+        var clefGlyph = (config.clef === "bass") ? '\uE062' : '\uE050';
+        var clefOffset = (config.clef === "bass") ? cfg.lineSp : 3 * cfg.lineSp;
+        this._fill(ctx, xStart + 10, yBase + clefOffset, clefGlyph, cfg.clefSize, config.color);
+
+        // 3. Desenha a Armadura de Clave (Usa a effectiveKey vinda do AtlasEngine)
+        if (config.accidentalMode !== "notes") {
+            var keyToDraw = config.effectiveKey || config.key || "C";
+            this._drawKeySignature(ctx, xStart + 45, yBase, config.clef, keyToDraw, config.color);
+        }
+
+        // 4. Desenha a Fórmula de Compasso
+        if (config.time) {
+            this._drawTimeSignature(ctx, xStart + 145, yBase, config.time, config.color);
+        }
+    },
+
+    _drawKeySignature: function(ctx, x, yBase, clef, key, color) {
+        var cfg = window.RenderConfig;
+        var sig = cfg.KEY_MAP[key] || [];
+        var isSharp = ["G", "D", "A", "E", "B", "F#", "C#"].indexOf(key) !== -1;
+        var glyph = isSharp ? '\uE262' : '\uE260';
+        
+        // Padrão de altura para sustenidos e bemóis em cada clave
+        var pattern = isSharp 
+            ? (clef === "treble" ? [0, 3, -1, 2, 5, 1, 4] : [-2, 1, -3, 0, 3, -1, 2]) 
+            : (clef === "treble" ? [4, 1, 5, 2, 6, 3, 7] : [2, -1, 3, 0, 4, 1, 5]);
+
+        for (var i = 0; i < sig.length; i++) {
+            var yP = yBase + 20 - (pattern[i] * 5);
+            this._fill(ctx, x + (i * 12), yP, glyph, cfg.accSize, color);
+        }
+    },
+
+    _drawBrace: function(ctx, x, yTop, yBottomBase, color) {
+        var cfg = window.RenderConfig;
+        var totalBottom = yBottomBase + 40;
+        var targetY = ((yTop + totalBottom) / 2) + cfg.BRACE_Y_OFFSET;
+        this._fill(ctx, x + cfg.BRACE_X_OFFSET, targetY, '\uE000', cfg.braceSize, color);
+    },
+
+    _drawTimeSignature: function(ctx, x, yBase, timeStr, color) {
+        var cfg = window.RenderConfig;
+        var p = timeStr.split("/");
+        this._fill(ctx, x, yBase + 10, cfg.TIME_GLYPHS[p[0]] || p[0], cfg.timeSize, color);
+        this._fill(ctx, x, yBase + 30, cfg.TIME_GLYPHS[p[1]] || p[1], cfg.timeSize, color);
+    },
+
+    _fill: function(ctx, x, y, char, size, color) {
+        ctx.fillStyle = color || "black";
+        ctx.font = size + "px Bravura";
+        ctx.textBaseline = "middle";
+        ctx.fillText(char, x, y);
     }
 };
