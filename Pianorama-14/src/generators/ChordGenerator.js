@@ -1,11 +1,8 @@
 /**
- * PIANORAMA - ChordGenerator.js (v12.3)
+ * PIANORAMA - ChordGenerator.js (v13.0)
  */
 
 window.ChordGenerator = {
-    /**
-     * Gera um acorde completo.
-     */
     generateChord: function(rootWithOctave, formulaKey, contextKey) {
         var context = contextKey || "C";
         var match = rootWithOctave.match(/^([A-Ga-g][#b]?|[A-Ga-g])(\d)$/);
@@ -14,50 +11,46 @@ window.ChordGenerator = {
         var rootKey = match[1];
         var startOctave = parseInt(match[2]);
         
-        // 1. MIDI da Fundamental
+        // 1. Normalização Enarmônica para busca (Eb -> D#)
+        var searchKey = rootKey.toUpperCase()
+                               .replace('DB','C#').replace('EB','D#')
+                               .replace('GB','F#').replace('AB','G#')
+                               .replace('BB','A#');
+
+        // 2. MIDI da Fundamental
         var pitchRef = window.PIANORAMA_DATA.config.pitch_reference;
-        var rootIndex = pitchRef.indexOf(rootKey.includes('#') || rootKey.includes('b') ? rootKey : rootKey.toUpperCase());
+        var rootIndex = pitchRef.indexOf(searchKey);
+        if (rootIndex === -1) rootIndex = 0;
+        
         var baseMidi = (startOctave + 1) * 12 + rootIndex;
 
-        // 2. Pega a fórmula
+        // 3. Pega a fórmula
         var intervals = window.TheoryEngine.getChordFormula(formulaKey);
         
-        // 3. Configura o Tradutor Global para o contexto da tonalidade
+        // 4. Configura o Tradutor e gera a pilha
         window.ContextTranslator.setContext(context);
-
-        // 4. Gera a pilha de notas (Corrigido o ReferenceError aqui)
         return intervals.map(function(interval) {
-            var currentMidi = baseMidi + interval;
-            // Chamada direta ao objeto global
-            return window.ContextTranslator.translate(currentMidi);
+            return window.ContextTranslator.translate(baseMidi + interval);
         });
     },
 
-    /**
-     * Aplica uma inversão a um array de notas de acorde
-     */
     applyInversion: function(chord, level) {
+        // Trava de segurança para evitar o erro "invertedChord is null"
+        if (!chord || !Array.isArray(chord) || chord.length === 0) return null;
         if (!level || level === 0) return chord;
-        let invertedChord = JSON.parse(JSON.stringify(chord));
 
+        let invertedChord = JSON.parse(JSON.stringify(chord));
         let actualLevel = level % invertedChord.length;
         if (actualLevel === 0) return invertedChord;
 
         for (let i = 0; i < actualLevel; i++) {
             let firstNote = invertedChord.shift();
             firstNote.octave = parseInt(firstNote.octave) + 1;
-        
             if (firstNote.midi) firstNote.midi += 12;
 
-            // --- BLINDAGEM AQUI ---
-            // Só tenta calcular se o módulo e a função existirem
-            if (window.ContextTranslator && typeof window.ContextTranslator.getAbsoluteY === 'function') {
-                firstNote.absoluteY = window.ContextTranslator.getAbsoluteY(firstNote);
-            } else {
-                // Se não existir, deleta para o RenderEngine recalcular no desenho
-                delete firstNote.absoluteY; 
+            if (window.ContextTranslator && typeof window.ContextTranslator._calculateAbsoluteY === 'function') {
+                firstNote.absoluteY = window.ContextTranslator._calculateAbsoluteY(firstNote.letter, firstNote.octave);
             }
-        
             invertedChord.push(firstNote);
         }
         return invertedChord.sort((a, b) => a.midi - b.midi);
